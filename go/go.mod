@@ -1,4 +1,4 @@
-module github.com/rsfzxx/test-top/go
+module github.com/rsfzxx/test-teknologi-operator-prima/go
 
 go 1.25.0
 
