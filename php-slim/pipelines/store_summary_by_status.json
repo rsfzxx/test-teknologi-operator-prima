@@ -1,0 +1,44 @@
+[
+  {
+    "$facet": {
+      "by_status": [
+        {
+          "$group": {
+            "_id": "$status",
+            "total": { "$sum": 1 },
+            "latest_created_at": { "$max": "$created_at" }
+          }
+        },
+        { "$sort": { "_id": 1 } }
+      ],
+      "overall": [
+        { "$count": "total" }
+      ]
+    }
+  },
+  {
+    "$set": {
+      "total": { "$ifNull": [{ "$arrayElemAt": ["$overall.total", 0] }, 0] }
+    }
+  },
+  {
+    "$project": {
+      "_id": 0,
+      "total": 1,
+      "by_status": {
+        "$map": {
+          "input": "$by_status",
+          "as": "s",
+          "in": {
+            "status": "$$s._id",
+            "total": "$$s.total",
+            "percentage": {
+              "$round": [{ "$multiply": [{ "$divide": ["$$s.total", "$total"] }, 100] }, 2]
+            },
+            "latest_created_at": "$$s.latest_created_at"
+          }
+        }
+      }
+    }
+  }
+]
