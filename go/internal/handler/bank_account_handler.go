@@ -9,6 +9,8 @@ import (
 	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/service"
 )
 
+const bankAccountsPath = "/api/v1/bank-accounts"
+
 type BankAccountHandler struct {
 	service service.BankAccountService
 }
@@ -49,6 +51,66 @@ func (h *BankAccountHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, "Bank account retrieved successfully", dto.NewBankAccountResponse(*account))
+}
+
+func (h *BankAccountHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateBankAccountRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	result, err := h.service.Create(r.Context(), req)
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	data := dto.NewBankAccountResponse(*result.Account)
+	if result.Restored {
+		response.Success(w, http.StatusOK, "Bank account restored successfully", data)
+		return
+	}
+
+	w.Header().Set("Location", bankAccountsPath+"/"+result.Account.BankAccountUUID.String())
+	response.Success(w, http.StatusCreated, "Bank account created successfully", data)
+}
+
+func (h *BankAccountHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUIDParam(r, "id")
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	var req dto.UpdateBankAccountRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	account, err := h.service.Update(r.Context(), id, req)
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, "Bank account updated successfully", dto.NewBankAccountResponse(*account))
+}
+
+func (h *BankAccountHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUIDParam(r, "id")
+	if err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	if err := h.service.Delete(r.Context(), id); err != nil {
+		response.Error(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, "Bank account deleted successfully", nil)
 }
 
 func parseListBankAccountsQuery(r *http.Request) (dto.ListBankAccountsQuery, error) {

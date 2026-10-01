@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"bytes"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +18,39 @@ type ListBankAccountsQuery struct {
 	BankCode string
 	SortBy   string
 	Order    string
+}
+
+type NumericString string
+
+func (n *NumericString) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	switch {
+	case len(b) == 0 || string(b) == "null":
+		*n = ""
+	case b[0] == '"':
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		*n = NumericString(s)
+	default:
+		*n = NumericString(b)
+	}
+	return nil
+}
+
+type CreateBankAccountRequest struct {
+	Bank          string        `json:"bank"`
+	AccountNumber NumericString `json:"account_number"`
+	AccountName   string        `json:"account_name"`
+}
+
+type UpdateBankAccountRequest struct {
+	Bank          string        `json:"bank"`
+	AccountNumber NumericString `json:"account_number"`
+	AccountName   string        `json:"account_name"`
+	Status        string        `json:"status"`
+	Reason        *string       `json:"reason"`
 }
 
 type BankAccountResponse struct {

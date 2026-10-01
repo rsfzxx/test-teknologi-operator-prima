@@ -50,7 +50,7 @@ func run() error {
 	bankService := service.NewBankService(bankRepo)
 
 	bankAccountRepo := postgres.NewBankAccountRepository(pool)
-	bankAccountService := service.NewBankAccountService(bankAccountRepo)
+	bankAccountService := service.NewBankAccountService(bankAccountRepo, bankRepo)
 
 	apiHandler := router.New(router.Dependencies{
 		Health:      handler.NewHealthHandler(pool),

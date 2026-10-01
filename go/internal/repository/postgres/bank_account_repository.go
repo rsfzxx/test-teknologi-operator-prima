@@ -8,13 +8,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/models"
 	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/repository"
 )
 
-const bankAccountColumns = `bank_account_uuid, account_number, bank_name, account_name, bank_code, status, reason, created_at, updated_at`
+const bankAccountColumns = `bank_account_uuid, account_number, bank_name, account_name, bank_code, status, reason, created_at, updated_at, deleted_at`
+
+const (
+	pgUniqueViolation = "23505"
+	pgCheckViolation  = "23514"
+)
 
 type BankAccountRepository struct {
 	db *pgxpool.Pool
@@ -69,18 +75,101 @@ func (r *BankAccountRepository) FindAll(ctx context.Context, f repository.BankAc
 }
 
 func (r *BankAccountRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.BankAccount, error) {
-	row := r.db.QueryRow(ctx,
+	return r.queryOne(ctx, "find bank account by id",
 		"SELECT "+bankAccountColumns+" FROM bank_accounts WHERE bank_account_uuid = $1 AND deleted_at IS NULL",
 		id.String())
+}
 
-	a, err := scanBankAccount(row)
+func (r *BankAccountRepository) FindByIDIncludingDeleted(ctx context.Context, id uuid.UUID) (*models.BankAccount, error) {
+	return r.queryOne(ctx, "find bank account by id (including deleted)",
+		"SELECT "+bankAccountColumns+" FROM bank_accounts WHERE bank_account_uuid = $1",
+		id.String())
+}
+
+func (r *BankAccountRepository) FindByNumberAndBank(ctx context.Context, accountNumber, bankName string) (*models.BankAccount, error) {
+	return r.queryOne(ctx, "find bank account by number and bank",
+		"SELECT "+bankAccountColumns+" FROM bank_accounts WHERE account_number = $1 AND bank_name = $2 LIMIT 1",
+		accountNumber, bankName)
+}
+
+func (r *BankAccountRepository) Create(ctx context.Context, p repository.CreateBankAccountParams) (*models.BankAccount, error) {
+	return r.queryOne(ctx, "create bank account",
+		`INSERT INTO bank_accounts
+		        (account_number, bank_name, account_name, bank_code, status, reason, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, NULL, NOW(), NOW())
+		 RETURNING `+bankAccountColumns,
+		p.AccountNumber, p.BankName, p.AccountName, p.BankCode, string(models.BankAccountReview))
+}
+
+func (r *BankAccountRepository) Update(ctx context.Context, id uuid.UUID, p repository.UpdateBankAccountParams) (*models.BankAccount, error) {
+	var reason any
+	if p.Reason != nil {
+		reason = *p.Reason
+	}
+
+	return r.queryOne(ctx, "update bank account",
+		`UPDATE bank_accounts
+		    SET account_number = $1,
+		        bank_name      = $2,
+		        account_name   = $3,
+		        bank_code      = $4,
+		        status         = $5,
+		        reason         = $6,
+		        updated_at     = NOW()
+		  WHERE bank_account_uuid = $7
+		    AND deleted_at IS NULL
+		RETURNING `+bankAccountColumns,
+		p.AccountNumber, p.BankName, p.AccountName, p.BankCode,
+		string(p.Status), reason, id.String())
+}
+
+func (r *BankAccountRepository) Restore(ctx context.Context, id uuid.UUID) (*models.BankAccount, error) {
+	return r.queryOne(ctx, "restore bank account",
+		`UPDATE bank_accounts
+		    SET deleted_at = NULL
+		  WHERE bank_account_uuid = $1
+		RETURNING `+bankAccountColumns,
+		id.String())
+}
+
+func (r *BankAccountRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE bank_accounts
+		    SET deleted_at = NOW()
+		  WHERE bank_account_uuid = $1
+		    AND deleted_at IS NULL`,
+		id.String())
+	if err != nil {
+		return fmt.Errorf("soft delete bank account: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
+func (r *BankAccountRepository) queryOne(ctx context.Context, op, sql string, args ...any) (*models.BankAccount, error) {
+	a, err := scanBankAccount(r.db.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
-		return nil, fmt.Errorf("find bank account by id: %w", err)
+		return nil, fmt.Errorf("%s: %w", op, mapPgError(err))
 	}
 	return &a, nil
+}
+
+func mapPgError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case pgUniqueViolation:
+			return repository.ErrConflict
+		case pgCheckViolation:
+			return &repository.InvalidDataError{Constraint: pgErr.ConstraintName}
+		}
+	}
+	return err
 }
 
 func scanBankAccount(row pgx.Row) (models.BankAccount, error) {
@@ -91,7 +180,7 @@ func scanBankAccount(row pgx.Row) (models.BankAccount, error) {
 	)
 	if err := row.Scan(
 		&id, &a.AccountNumber, &a.BankName, &a.AccountName, &a.BankCode,
-		&status, &a.Reason, &a.CreatedAt, &a.UpdatedAt,
+		&status, &a.Reason, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	); err != nil {
 		return models.BankAccount{}, err
 	}

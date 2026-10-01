@@ -32,13 +32,16 @@ func New(d Dependencies) http.Handler {
 	// Bank Account
 	mux.HandleFunc("GET "+apiV1+"/bank-accounts", d.BankAccount.List)
 	mux.HandleFunc("GET "+apiV1+"/bank-accounts/{id}", d.BankAccount.GetByID)
+	mux.HandleFunc("POST "+apiV1+"/bank-accounts", d.BankAccount.Create)
+	mux.HandleFunc("PUT "+apiV1+"/bank-accounts/{id}", d.BankAccount.Update)
+	mux.HandleFunc("DELETE "+apiV1+"/bank-accounts/{id}", d.BankAccount.Delete)
 
 	// Path yang dikenal tetapi method-nya salah
 	mux.HandleFunc(apiV1+"/banks", methodNotAllowed(http.MethodGet))
 	mux.HandleFunc(apiV1+"/banks/{id}", methodNotAllowed(http.MethodGet))
 	mux.HandleFunc(apiV1+"/banks/{id}/status", methodNotAllowed(http.MethodPatch))
-	mux.HandleFunc(apiV1+"/bank-accounts", methodNotAllowed(http.MethodGet))
-	mux.HandleFunc(apiV1+"/bank-accounts/{id}", methodNotAllowed(http.MethodGet))
+	mux.HandleFunc(apiV1+"/bank-accounts", methodNotAllowed("GET, POST"))
+	mux.HandleFunc(apiV1+"/bank-accounts/{id}", methodNotAllowed("GET, PUT, DELETE"))
 
 	// Path yang tidak dikenal
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {

@@ -50,3 +50,7 @@ func Internal(err error) *Error {
 		Err:     err,
 	}
 }
+
+func Conflict(message string, details ...FieldError) *Error {
+	return New(http.StatusConflict, message, details...)
+}

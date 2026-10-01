@@ -43,7 +43,29 @@ type BankAccountFilter struct {
 	Offset   int
 }
 
+type CreateBankAccountParams struct {
+	AccountNumber string
+	BankName      string
+	AccountName   string
+	BankCode      string
+}
+
+type UpdateBankAccountParams struct {
+	AccountNumber string
+	BankName      string
+	AccountName   string
+	BankCode      string
+	Status        models.BankAccountStatus
+	Reason        *string
+}
+
 type BankAccountRepository interface {
 	FindAll(ctx context.Context, filter BankAccountFilter) ([]models.BankAccount, int64, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.BankAccount, error)
+	FindByIDIncludingDeleted(ctx context.Context, id uuid.UUID) (*models.BankAccount, error)
+	FindByNumberAndBank(ctx context.Context, accountNumber, bankName string) (*models.BankAccount, error)
+	Create(ctx context.Context, p CreateBankAccountParams) (*models.BankAccount, error)
+	Update(ctx context.Context, id uuid.UUID, p UpdateBankAccountParams) (*models.BankAccount, error)
+	Restore(ctx context.Context, id uuid.UUID) (*models.BankAccount, error)
+	SoftDelete(ctx context.Context, id uuid.UUID) error
 }
