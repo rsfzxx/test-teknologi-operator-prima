@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/apperror"
 	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/dto"
@@ -31,13 +30,9 @@ func (h *BankHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	perPage := int64(result.PerPage)
-	response.Paginated(w, "Banks retrieved successfully", dto.NewBankResponses(result.Banks), response.Meta{
-		Page:       result.Page,
-		PerPage:    result.PerPage,
-		Total:      result.Total,
-		TotalPages: int((result.Total + perPage - 1) / perPage),
-	})
+	response.Paginated(w, "Banks retrieved successfully",
+		dto.NewBankResponses(result.Banks),
+		response.NewMeta(result.Page, result.PerPage, result.Total))
 }
 
 func (h *BankHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -81,34 +76,18 @@ func (h *BankHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 func parseListBanksQuery(r *http.Request) (dto.ListBanksQuery, error) {
 	v := r.URL.Query()
 
-	q := dto.ListBanksQuery{
-		Page:    dto.DefaultPage,
-		PerPage: dto.DefaultPerPage,
+	page, perPage, details := parsePagination(v)
+	if len(details) > 0 {
+		return dto.ListBanksQuery{}, apperror.BadRequest("Invalid query parameters", details...)
+	}
+
+	return dto.ListBanksQuery{
+		Page:    page,
+		PerPage: perPage,
 		Search:  v.Get("search"),
 		Status:  v.Get("status"),
 		Type:    v.Get("type"),
 		SortBy:  v.Get("sort_by"),
 		Order:   v.Get("order"),
-	}
-
-	var details []apperror.FieldError
-	parseInt := func(key string, dst *int) {
-		raw := v.Get(key)
-		if raw == "" {
-			return
-		}
-		n, err := strconv.Atoi(raw)
-		if err != nil {
-			details = append(details, apperror.FieldError{Field: key, Message: "must be a number"})
-			return
-		}
-		*dst = n
-	}
-	parseInt("page", &q.Page)
-	parseInt("per_page", &q.PerPage)
-
-	if len(details) > 0 {
-		return q, apperror.BadRequest("Invalid query parameters", details...)
-	}
-	return q, nil
+	}, nil
 }

@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	"github.com/google/uuid"
 
 	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/apperror"
+	"github.com/rsfzxx/test-teknologi-operator-prima/go/internal/dto"
 )
 
 const maxBodyBytes = 1 << 20
@@ -23,6 +26,26 @@ func parseUUIDParam(r *http.Request, name string) (uuid.UUID, error) {
 		})
 	}
 	return id, nil
+}
+
+func parsePagination(v url.Values) (page, perPage int, details []apperror.FieldError) {
+	page, perPage = dto.DefaultPage, dto.DefaultPerPage
+
+	read := func(key string, dst *int) {
+		raw := v.Get(key)
+		if raw == "" {
+			return
+		}
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			details = append(details, apperror.FieldError{Field: key, Message: "must be a number"})
+			return
+		}
+		*dst = n
+	}
+	read("page", &page)
+	read("per_page", &perPage)
+	return page, perPage, details
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {

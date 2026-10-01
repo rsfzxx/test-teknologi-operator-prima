@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,19 @@ const (
 	BankAccountReview   BankAccountStatus = "Review"
 	BankAccountRejected BankAccountStatus = "Rejected"
 )
+
+func ParseBankAccountStatus(s string) (BankAccountStatus, bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "accepted":
+		return BankAccountAccepted, true
+	case "review":
+		return BankAccountReview, true
+	case "rejected":
+		return BankAccountRejected, true
+	default:
+		return "", false
+	}
+}
 
 type BankAccount struct {
 	BankAccountUUID uuid.UUID         `json:"bank_account_uuid"`

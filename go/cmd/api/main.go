@@ -49,9 +49,13 @@ func run() error {
 	bankRepo := postgres.NewBankRepository(pool)
 	bankService := service.NewBankService(bankRepo)
 
+	bankAccountRepo := postgres.NewBankAccountRepository(pool)
+	bankAccountService := service.NewBankAccountService(bankAccountRepo)
+
 	apiHandler := router.New(router.Dependencies{
-		Health: handler.NewHealthHandler(pool),
-		Bank:   handler.NewBankHandler(bankService),
+		Health:      handler.NewHealthHandler(pool),
+		Bank:        handler.NewBankHandler(bankService),
+		BankAccount: handler.NewBankAccountHandler(bankAccountService),
 	})
 
 	srv := &http.Server{

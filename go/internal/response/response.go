@@ -72,3 +72,11 @@ func Error(w http.ResponseWriter, err error) {
 		Errors:  appErr.Details,
 	})
 }
+
+func NewMeta(page, perPage int, total int64) Meta {
+	totalPages := 0
+	if perPage > 0 {
+		totalPages = int((total + int64(perPage) - 1) / int64(perPage))
+	}
+	return Meta{Page: page, PerPage: perPage, Total: total, TotalPages: totalPages}
+}

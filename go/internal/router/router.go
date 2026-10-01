@@ -12,13 +12,15 @@ import (
 const apiV1 = "/api/v1"
 
 type Dependencies struct {
-	Health *handler.HealthHandler
-	Bank   *handler.BankHandler
+	Health      *handler.HealthHandler
+	Bank        *handler.BankHandler
+	BankAccount *handler.BankAccountHandler
 }
 
 func New(d Dependencies) http.Handler {
 	mux := http.NewServeMux()
 
+	// Health check
 	mux.HandleFunc("GET /health", d.Health.Check)
 	mux.HandleFunc("/health", methodNotAllowed(http.MethodGet))
 
@@ -26,10 +28,19 @@ func New(d Dependencies) http.Handler {
 	mux.HandleFunc("GET "+apiV1+"/banks", d.Bank.List)
 	mux.HandleFunc("GET "+apiV1+"/banks/{id}", d.Bank.GetByID)
 	mux.HandleFunc("PATCH "+apiV1+"/banks/{id}/status", d.Bank.UpdateStatus)
+
+	// Bank Account
+	mux.HandleFunc("GET "+apiV1+"/bank-accounts", d.BankAccount.List)
+	mux.HandleFunc("GET "+apiV1+"/bank-accounts/{id}", d.BankAccount.GetByID)
+
+	// Path yang dikenal tetapi method-nya salah
 	mux.HandleFunc(apiV1+"/banks", methodNotAllowed(http.MethodGet))
 	mux.HandleFunc(apiV1+"/banks/{id}", methodNotAllowed(http.MethodGet))
 	mux.HandleFunc(apiV1+"/banks/{id}/status", methodNotAllowed(http.MethodPatch))
+	mux.HandleFunc(apiV1+"/bank-accounts", methodNotAllowed(http.MethodGet))
+	mux.HandleFunc(apiV1+"/bank-accounts/{id}", methodNotAllowed(http.MethodGet))
 
+	// Path yang tidak dikenal
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		response.Error(w, apperror.NotFound("Endpoint not found"))
 	})
