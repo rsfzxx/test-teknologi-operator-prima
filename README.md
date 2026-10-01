@@ -1,2 +1,1 @@
-go/README.md
-php-slim/README.md
+go/README.md or php-slim/README.md
