@@ -26,6 +26,8 @@ cd test-teknologi-operator-prima/php-slim
 
 Salin `.env.example` menjadi `.env`, lalu isi connection string MongoDB:
 
+# Database hanya untuk mempermudah keperluan testing/review, saya memahami apabila menyimpan database url dan upload ke github sangat tidak di anjurkan
+
 ```env
 APP_DEBUG=false
 MONGODB_URI=mongodb+srv://rismanmuhammadhafidz21_db_user:TestingTop@test-top.ohbk3g2.mongodb.net/?appName=Test-top
